@@ -12,7 +12,7 @@ namespace QualisysRealTime.Unity
 
     public class RTGUIingame : MonoBehaviour
     {
-        short portUDP = -1;
+        short portUDP = 4545;
         int selectedServer = 0;
         DiscoveryResponse? selectedDiscoveryResponse = null;
 
@@ -25,14 +25,17 @@ namespace QualisysRealTime.Unity
         /// This makes sure we only can connect when in playing mode
         void OnInspectorUpdate()
         {
-            if (!Application.isPlaying && connected)
+            if (!Application.isPlaying)
             {
-                Disconnect();
+                OnDisconnect();
+                connected = false;
             }
         }
 
         void OnGUI()
         {
+            connected = RTClient.GetInstance().IsConnected();
+
             GUIStyle style = new GUIStyle();
             style.fontStyle = FontStyle.Bold;
             style.normal.textColor = Color.white;
@@ -72,14 +75,14 @@ namespace QualisysRealTime.Unity
             {
                 if (GUI.Button(new Rect(20, 115, 200, 40), "Disconnect"))
                 {
-                    Disconnect();
+                    OnDisconnect();
                 }
             }
             else
             {
                 if (GUI.Button(new Rect(20, 115, 200, 40), "Connect"))
                 {
-                    Connect();
+                    OnConnect();
                 }
             }
             GUI.Label(new Rect(20, 90, 200, 40), "Status: " + connectionStatus);
@@ -87,26 +90,22 @@ namespace QualisysRealTime.Unity
 
         void OnDestroy()
         {
-            var instance = RTClient.GetInstance();
-            if (instance.IsConnected())
-                instance.Disconnect();
+            RTClient.GetInstance().Disconnect();
             connected = false;
         }
 
-        void Disconnect()
+        void OnDisconnect()
         {
-            var instance = RTClient.GetInstance();
-            if(instance.IsConnected())
-                instance.Disconnect();
+            RTClient.GetInstance().Disconnect();
             connected = false;
 
             connectionStatus = "Disconnected";
         }
 
-        void Connect()
+        void OnConnect()
         {
             if (selectedDiscoveryResponse.HasValue)
-                connected = RTClient.GetInstance().Connect(selectedDiscoveryResponse.Value, portUDP, true, true, false, true, false, true);
+                connected = RTClient.GetInstance().Connect(selectedDiscoveryResponse.Value, portUDP, true, true, true, true, true, true, true);
 
             if (connected)
                 connectionStatus = "Connected";

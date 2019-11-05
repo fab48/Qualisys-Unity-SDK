@@ -40,18 +40,63 @@ namespace QualisysRealTime.Unity
         private List<Skeleton> mSkeletons;
         public List<Skeleton> Skeletons { get { return mSkeletons; } }
 
+        private List<ForcePlate> mForcePlates;
+        public List<ForcePlate> ForcePlates { get { return mForcePlates; } }
 
         private Axis mUpAxis;
         private Quaternion mCoordinateSystemChange;
         private RTPacket mPacket;
         private bool mStreamingStatus;
 
-
         // processor of realtime data
         // Function is called every time protocol receives a datapacket from server
         public void Process(RTPacket packet)
         {
             mPacket = packet;
+
+            var forceData = packet.GetForceData();
+
+            if (forceData != null)
+            {
+                //Debug.Log(mForcePlates.Count + "/" + forceData.Count);
+
+                for (int i = 0; i < forceData.Count; i++)
+                {
+                    //Debug.Log("force Plate"+forceData[i].PlateId);
+                    
+                    mForcePlates[i].ForceCount = forceData[i].ForceCount;
+                    mForcePlates[i].ForceSamples = new ForceSample[forceData[i].ForceCount];
+                    
+                    for (int j = 0; j < forceData[i].ForceSamples.Count(); j++)
+                    {
+                        var forceSampleData = forceData[i].ForceSamples[j];
+
+                        mForcePlates[i].ForceSamples[j] = new ForceSample();
+
+                        Rotation.ECoordinateAxes xAxis, yAxis, zAxis;
+                        Axis axis = Axis.XAxisUpwards;
+                        Rotation.GetCalibrationAxesOrder(axis, out xAxis, out yAxis, out zAxis);
+                        Quaternion rotateMatrix = Rotation.GetAxesOrderRotation(xAxis, yAxis, zAxis);
+
+                        //Add ApplicationPoint, need to XAxis Upwards ? 
+                        Vector3 position = new Vector3(forceSampleData.ApplicationPoint.Z, forceSampleData.ApplicationPoint.Y, forceSampleData.ApplicationPoint.X);
+                        position /= 1000;
+                        position = QuaternionHelper.Rotate(rotateMatrix, position);
+                        position.x *= -1;
+                        mForcePlates[i].ForceSamples[j].ApplicationPoint = position;
+
+                        //Add Force 
+                        position = new Vector3(forceSampleData.Force.X, forceSampleData.Force.Y, forceSampleData.Force.Z);
+                        position /= 1000;
+                        mForcePlates[i].ForceSamples[j].Force = position;
+
+                        //Add Moment
+                        position = new Vector3(forceSampleData.Moment.X, forceSampleData.Moment.Y, forceSampleData.Moment.Z);
+                        position /= 1000;
+                        mForcePlates[i].ForceSamples[j].Moment = position;
+                    }
+                }
+            }
 
             var bodyData = packet.Get6DOFData();
             if (bodyData != null)
@@ -186,6 +231,8 @@ namespace QualisysRealTime.Unity
                 GetGazeVectorSettings();
                 GetAnalogSettings();
                 GetSkeletonSettings();
+                GetForceSettings();
+                
             }
         }
 
@@ -220,6 +267,7 @@ namespace QualisysRealTime.Unity
             mGazeVectors = new List<GazeVector>();
             mAnalogChannels = new List<AnalogChannel>();
             mSkeletons = new List<Skeleton>();
+            mForcePlates = new List<ForcePlate>();
 
             mStreamingStatus = false;
             mPacket = RTPacket.ErrorPacket;
@@ -312,6 +360,7 @@ namespace QualisysRealTime.Unity
             }
             return null;
         }
+
         // Get analog channel data from streamed data
         public List<AnalogChannel> GetAnalogChannels(List<string> names)
         {
@@ -330,6 +379,22 @@ namespace QualisysRealTime.Unity
             }
             if (analogChannels.Count == names.Count)
                 return analogChannels;
+            return null;
+        }
+
+        //get force plate by ID
+        public ForcePlate GetForcePlate(int id)
+        {
+            if (mForcePlates.Count <= 0)
+                return null;
+
+            foreach (var forcePlate in mForcePlates)
+            {
+                if (forcePlate.PlateId == id)
+                {
+                    return forcePlate;
+                }
+            }
             return null;
         }
 
@@ -380,7 +445,7 @@ namespace QualisysRealTime.Unity
         /// <param name="stream3dNoLabels">if unlabeled markers should be streamed.</param>
         /// <param name="streamGaze">if gaze vectors should be streamed.</param>
         /// <param name="streamAnalog">if analog data should be streamed.</param>
-        public bool Connect(DiscoveryResponse discoveryResponse, short udpPort, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton)
+        public bool Connect(DiscoveryResponse discoveryResponse, short udpPort, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton, bool streamForces)
         {
             if (!mProtocol.Connect(discoveryResponse, udpPort, RTProtocol.Constants.MAJOR_VERSION, RTProtocol.Constants.MINOR_VERSION))
             {
@@ -390,7 +455,7 @@ namespace QualisysRealTime.Unity
                     return false;
                 }
             }
-            return ConnectStream(udpPort, StreamRate.RateAllFrames, stream6d, stream3d, stream3dNoLabels, streamGaze, streamAnalog, streamSkeleton);
+            return ConnectStream(udpPort, StreamRate.RateAllFrames, stream6d, stream3d, stream3dNoLabels, streamGaze, streamAnalog, streamSkeleton, streamForces);
         }
 
         /// <summary>
@@ -403,11 +468,11 @@ namespace QualisysRealTime.Unity
         /// <param name="stream3d">if unlabeled markers should be streamed.</param>
         /// <param name="streamGaze">if gaze vectors should be streamed.</param>
         /// <param name="streamAnalog">if analog data should be streamed.</param>
-        public bool Connect(string IpAddress, short udpPort, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton)
+        public bool Connect(string IpAddress, short udpPort, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton, bool streamForces)
         {
             if (mProtocol.Connect(IpAddress, udpPort))
             {
-                return ConnectStream(udpPort, StreamRate.RateAllFrames, stream6d, stream3d, stream3dNoLabels, streamGaze, streamAnalog, streamSkeleton);
+                return ConnectStream(udpPort, StreamRate.RateAllFrames, stream6d, stream3d, stream3dNoLabels, streamGaze, streamAnalog, streamSkeleton, streamForces);
             }
             Debug.Log("Error Creating Connection to server");
             return false;
@@ -438,7 +503,10 @@ namespace QualisysRealTime.Unity
             mProtocol.StreamFramesStop();
             mProtocol.StopStreamListen();
             mProtocol.Disconnect();
+            mForcePlates.Clear();
+
         }
+
 
         private bool GetGazeVectorSettings()
         {
@@ -505,7 +573,6 @@ namespace QualisysRealTime.Unity
                     newbody.Position = Vector3.zero;
                     newbody.Rotation = Quaternion.identity;
                     mBodies.Add(newbody);
-
                 }
 
                 return true;
@@ -600,7 +667,68 @@ namespace QualisysRealTime.Unity
             return false;
         }
 
-        public bool ConnectStream(short udpPort, StreamRate streamRate, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton)
+
+        private bool GetForceSettings()
+        {
+            bool getStatus = mProtocol.GetForceSettings();
+
+            if (getStatus)
+            {
+                mForcePlates.Clear();
+                SettingsForce  mForcePlatesettings = mProtocol.ForceSettings;
+
+                //Debug.Log("UnitLength " + settings.UnitLength);
+                //Debug.Log("UnitForce " + settings.UnitForce);
+
+                foreach (var p in mForcePlatesettings.Plates)
+                {
+                    //Debug.Log(p.Name+" corner1:"+p.Location.Corner1.X+"-"+ p.Location.Corner1.Y + " "+p.Width+" "+p.Length);
+
+                    ForcePlate forcePlate = new ForcePlate();
+
+                    forcePlate.Name = p.Name;
+                    forcePlate.PlateId = p.PlateID;
+
+                    Vector3 position = new Vector3(p.Origin.X, p.Origin.Y, p.Origin.Z);//Set position to work with unity
+                    position /= 1000;
+                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
+                    position.z *= -1;
+                    forcePlate.Origin = position;
+
+                    //Force Plate Location (4 corners)
+                    position = new Vector3(p.Location.Corner1.X, p.Location.Corner1.Y, p.Location.Corner1.Z);//Set position to work with unity
+                    position /= 1000;
+                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
+                    position.z *= -1;
+                    forcePlate.ForcePlateCorners[0] = position ;
+                    
+                    position = new Vector3(p.Location.Corner2.X, p.Location.Corner2.Y, p.Location.Corner2.Z);//Set position to work with unity
+                    position /= 1000;
+                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
+                    position.z *= -1;
+                    forcePlate.ForcePlateCorners[1] = position ;
+
+                    position = new Vector3(p.Location.Corner3.X, p.Location.Corner3.Y, p.Location.Corner3.Z);//Set position to work with unity
+                    position /= 1000;
+                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
+                    position.z *= -1;
+                    forcePlate.ForcePlateCorners[2] = position ;
+
+                    position = new Vector3(p.Location.Corner4.X, p.Location.Corner4.Y, p.Location.Corner4.Z);//Set position to work with unity
+                    position /= 1000;
+                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
+                    position.z *= -1;
+                    forcePlate.ForcePlateCorners[3] = position ;
+
+                    mForcePlates.Add(forcePlate);
+                }
+
+                return true;
+            }
+            return false;
+        }
+
+        public bool ConnectStream(short udpPort, StreamRate streamRate, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton, bool streamForces)
         {
             List<ComponentType> streamedTypes = new List<ComponentType>();
 
@@ -673,6 +801,19 @@ namespace QualisysRealTime.Unity
                 else
                 {
                     Debug.Log("Error retrieving skeleton settings from stream");
+                }
+            }
+
+            if (streamForces)
+            {
+                if (GetForceSettings())
+                {
+                    streamedTypes.Add(ComponentType.ComponentForce);
+                    //streamedTypes.Add(ComponentType.ComponentForceSingle);
+                }
+                else
+                {
+                    Debug.Log("Error retrieving Forces settings from stream");
                 }
             }
 

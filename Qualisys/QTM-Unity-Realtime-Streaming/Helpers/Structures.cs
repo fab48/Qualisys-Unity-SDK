@@ -72,5 +72,47 @@ namespace QualisysRealTime.Unity
         public string Name;
         public Dictionary<uint, Segment> Segments = new Dictionary<uint, Segment>();
     }
-    
+
+    // Class for ForcePlate unity data types
+    public class ForcePlate
+    {
+        public string Name;
+        /// <summary>ID of plate</summary>
+        public int PlateId;
+        /// <summary>Number of forces in frame</summary>
+        public int ForceCount;
+        /// <summary>Force number, increased with the force frequency</summary>
+        public int ForceNumber;
+        /// <summary></summary>
+        public Vector3 Origin;
+        /// <summary> Force Plate 4 corners in Unity coordinate </summary>
+        public Vector3[] ForcePlateCorners = new Vector3[4];
+        /// <summary>Samples collected from plate</summary>
+        public ForceSample[] ForceSamples;
+        /// <summary>Samples collected from plate</summary>
+        public Matrix4x4 calibrationMatrix;
+
+        public Vector3 GetPlateCenter()
+        {
+            Vector3 pos = Vector3.zero;
+            foreach(Vector3 p in ForcePlateCorners)
+            {
+                pos += p;
+            }
+            pos /= ForcePlateCorners.Length;
+            return pos;
+        }
+    }
+
+    // Class for Sample ForcePlate unity data types
+    public class ForceSample
+    {
+        public ForceSample() { }
+        /// <summary>Coordinate of the force </summary>
+        public Vector3 Force=Vector3.zero;
+        /// <summary>Coordinate of the moment </summary>
+        public Vector3 Moment = Vector3.zero;
+        /// <summary>Coordinate of the force application point </summary>
+        public Vector3 ApplicationPoint = Vector3.zero;
+    }
 }
