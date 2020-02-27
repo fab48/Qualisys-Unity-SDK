@@ -84,13 +84,13 @@ namespace QualisysRealTime.Unity
         /// <summary>Force number, increased with the force frequency</summary>
         public int ForceNumber;
         /// <summary></summary>
-        public Vector3 Origin;
+        public Vector3 Origin = Vector3.zero;
         /// <summary> Force Plate 4 corners in Unity coordinate </summary>
         public Vector3[] ForcePlateCorners = new Vector3[4];
         /// <summary>Samples collected from plate</summary>
-        public ForceSample[] ForceSamples;
+        public ForceSample[] ForceSamples = new ForceSample[1];
         /// <summary>Samples collected from plate</summary>
-        public Matrix4x4 calibrationMatrix;
+        //public Matrix4x4 calibrationMatrix;
 
         public Vector3 GetPlateCenter()
         {
@@ -109,10 +109,43 @@ namespace QualisysRealTime.Unity
     {
         public ForceSample() { }
         /// <summary>Coordinate of the force </summary>
-        public Vector3 Force=Vector3.zero;
+        private Vector3 force = Vector3.zero;
+        public Vector3 Force {
+            get {
+                if (force == null)
+                    return Vector3.zero;
+                else
+                    return force;
+            }
+            set {
+                force = value;
+            }
+        }
         /// <summary>Coordinate of the moment </summary>
-        public Vector3 Moment = Vector3.zero;
+        private Vector3 moment = Vector3.zero;
+        public Vector3 Moment {
+            get {
+                if (moment == null)
+                    return Vector3.zero;
+                else
+                    return moment;
+            }
+            set {
+                moment = value;
+            }
+        }
         /// <summary>Coordinate of the force application point </summary>
-        public Vector3 ApplicationPoint = Vector3.zero;
+        private Vector3 applicationPoint = Vector3.zero;
+        public Vector3 ApplicationPoint {
+            get {
+                if (applicationPoint == null)
+                    return Vector3.zero;
+                else
+                    return applicationPoint;
+            }
+            set {
+                applicationPoint = value;
+            }
+        }
     }
 }

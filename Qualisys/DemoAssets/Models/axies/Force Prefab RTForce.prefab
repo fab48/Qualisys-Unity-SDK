@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4977076513794631621}
-  - component: {fileID: 4231122925877410064}
+  - component: {fileID: 1765943531}
   m_Layer: 0
   m_Name: Force Prefab RTForce
   m_TagString: Untagged
@@ -32,7 +32,7 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4231122925877410064
+--- !u!114 &1765943531
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -41,16 +41,17 @@ MonoBehaviour:
   m_GameObject: {fileID: 4974135144612616837}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 25af83755d1eb3a4fad05a59fb922948, type: 3}
+  m_Script: {fileID: 11500000, guid: 164430fc3c0d44946ad914facec39a17, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  YAxisTransform: {fileID: 4975697278358222971}
-  drawForcePlateGizmo: 1
-  drawForceGizmo: 1
-  drawMomentGizmo: 1
-  drawCOPGizmo: 1
-  plateColor: {r: 0.6627451, g: 0.6627451, b: 0.9058824, a: 0.5}
+  YAxisGO: {fileID: 4974149876708211991}
+  drawForcePlateGizmo: 0
+  drawForceGizmo: 0
+  drawMomentGizmo: 0
+  drawCOPGizmo: 0
+  plateColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
   gizmoDelay: 5
+  forceScale: 1.5
 --- !u!1 &4974149876708211991
 GameObject:
   m_ObjectHideFlags: 0
@@ -116,6 +117,7 @@ MeshRenderer:
   m_ProbeAnchor: {fileID: 0}
   m_LightProbeVolumeOverride: {fileID: 0}
   m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
   m_PreserveUVs: 0
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0

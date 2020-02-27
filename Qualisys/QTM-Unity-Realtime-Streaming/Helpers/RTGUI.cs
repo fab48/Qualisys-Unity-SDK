@@ -11,7 +11,7 @@ namespace QualisysRealTime.Unity
 {
     public class RTGUI : EditorWindow
     {
-        short portUDP = 4545;
+        short portUDP = -1;
         DiscoveryResponse? selectedDiscoveryResponse = null;
 
         string connectionStatus = "Not Connected";
@@ -23,10 +23,9 @@ namespace QualisysRealTime.Unity
         bool streamGaze = true;
         bool streamAnalog = false;
         bool streamSkeleton = true;
-        bool streamForces = true;
 
-        //protected List<SixDOFBody> availableBodies;
-        protected List<DiscoveryResponse> discoveryResponses;
+        //private List<SixDOFBody> availableBodies;
+        private List<DiscoveryResponse> discoveryResponses;
 
         [MenuItem("Window/Qualisys/RTClient")]
         public static void ShowWindow()
@@ -43,20 +42,16 @@ namespace QualisysRealTime.Unity
         void OnInspectorUpdate()
         {
             Repaint();
-            if (!Application.isPlaying)
+            if (!Application.isPlaying && connected)
             {
-                OnDisconnect();
-                connected = false;
+                Disconnect();
             }
         }
 
-        protected int serverNumber = 0;
+        private int serverNumber = 0;
 
         void OnGUI()
         {
-            if (Application.isPlaying)
-                connected = RTClient.GetInstance().IsConnected();
-
             titleContent.text = "QTM Streaming";
             GUILayout.Label("Server Settings", EditorStyles.boldLabel);
             if (Application.isPlaying)
@@ -91,14 +86,13 @@ namespace QualisysRealTime.Unity
                 GUI.enabled = false;
             }
             GUILayout.Label("Stream Settings", EditorStyles.boldLabel);
-            portUDP = (short)EditorGUILayout.IntField("UDP Port:", portUDP);
+            
             stream3d = EditorGUILayout.Toggle("Labeled 3D Markers", stream3d);
             stream3dNoLabels = EditorGUILayout.Toggle("Unlabeled 3D Markers", stream3dNoLabels);
             stream6d = EditorGUILayout.Toggle("6DOF Objects", stream6d);
             streamGaze = EditorGUILayout.Toggle("Gaze Vectors", streamGaze);
             streamAnalog = EditorGUILayout.Toggle("Analog", streamAnalog);
             streamSkeleton = EditorGUILayout.Toggle("Skeletons", streamSkeleton);
-            streamForces = EditorGUILayout.Toggle("Forces", streamForces);
             GUI.enabled = true;
 
             if (Application.isPlaying)
@@ -109,7 +103,7 @@ namespace QualisysRealTime.Unity
                 {
                     if (GUILayout.Button("Disconnect"))
                     {
-                        OnDisconnect();
+                        Disconnect();
                     }
                     var bodies = RTClient.GetInstance().Bodies;
                     if (bodies != null)
@@ -138,23 +132,12 @@ namespace QualisysRealTime.Unity
                             GUILayout.Label(channel.Name);
                         }
                     }
-                    //TODO
-                    /*
-                    var forcePlates = RTClient.GetInstance().ForcePlates;
-                    if (forcePlates != null)
-                    {
-                        GUILayout.Label("Available forcePlates:");
-                        foreach (var channel in forcePlates)
-                        {
-                            //GUILayout.Label(channel.);
-                        }
-                    }*/
                 }
                 else
                 {
                     if (GUILayout.Button("Connect"))
                     {
-                        OnConnect();
+                        Connect();
                     }
                 }
             }
@@ -166,22 +149,29 @@ namespace QualisysRealTime.Unity
 
         void OnDestroy()
         {
-            RTClient.GetInstance().Disconnect();
+            var instance = RTClient.GetInstance();
+            if (instance.IsConnected())
+            {
+                instance.Disconnect();
+            }
             connected = false;
         }
 
-        void OnDisconnect()
+        void Disconnect()
         {
-            RTClient.GetInstance().Disconnect();
+            var instance = RTClient.GetInstance();
+            if (instance.IsConnected()) {
+                instance.Disconnect();
+            }
             connected = false;
             connectionStatus = "Disconnected";
         }
 
-        void OnConnect()
+        void Connect()
         {
             if (selectedDiscoveryResponse.HasValue)
             {
-                connected = RTClient.GetInstance().Connect(selectedDiscoveryResponse.Value, portUDP, stream6d, stream3d, stream3dNoLabels, streamGaze, streamAnalog, streamSkeleton, streamForces);
+                connected = RTClient.GetInstance().Connect(selectedDiscoveryResponse.Value, portUDP, stream6d, stream3d, stream3dNoLabels, streamGaze, streamAnalog, streamSkeleton);
             }
 
             if (connected)

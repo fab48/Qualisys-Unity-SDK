@@ -63,37 +63,41 @@ namespace QualisysRealTime.Unity
                 for (int i = 0; i < forceData.Count; i++)
                 {
                     //Debug.Log("force Plate"+forceData[i].PlateId);
-                    
-                    mForcePlates[i].ForceCount = forceData[i].ForceCount;
-                    mForcePlates[i].ForceSamples = new ForceSample[forceData[i].ForceCount];
-                    
-                    for (int j = 0; j < forceData[i].ForceSamples.Count(); j++)
+                    if (i <= mForcePlates.Count && i <= forceData.Count && mForcePlates.Count >= forceData.Count)
                     {
-                        var forceSampleData = forceData[i].ForceSamples[j];
 
-                        mForcePlates[i].ForceSamples[j] = new ForceSample();
+                        mForcePlates[i].ForceCount = forceData[i].ForceCount;
 
-                        Rotation.ECoordinateAxes xAxis, yAxis, zAxis;
-                        Axis axis = Axis.XAxisUpwards;
-                        Rotation.GetCalibrationAxesOrder(axis, out xAxis, out yAxis, out zAxis);
-                        Quaternion rotateMatrix = Rotation.GetAxesOrderRotation(xAxis, yAxis, zAxis);
+                        mForcePlates[i].ForceSamples = new ForceSample[forceData[i].ForceCount];
 
-                        //Add ApplicationPoint, need to XAxis Upwards ? 
-                        Vector3 position = new Vector3(forceSampleData.ApplicationPoint.Z, forceSampleData.ApplicationPoint.Y, forceSampleData.ApplicationPoint.X);
-                        position /= 1000;
-                        position = QuaternionHelper.Rotate(rotateMatrix, position);
-                        position.x *= -1;
-                        mForcePlates[i].ForceSamples[j].ApplicationPoint = position;
+                        for (int j = 0; j < forceData[i].ForceSamples.Count(); j++)
+                        {
+                            var forceSampleData = forceData[i].ForceSamples[j];
 
-                        //Add Force 
-                        position = new Vector3(forceSampleData.Force.X, forceSampleData.Force.Y, forceSampleData.Force.Z);
-                        position /= 1000;
-                        mForcePlates[i].ForceSamples[j].Force = position;
+                            mForcePlates[i].ForceSamples[j] = new ForceSample();
 
-                        //Add Moment
-                        position = new Vector3(forceSampleData.Moment.X, forceSampleData.Moment.Y, forceSampleData.Moment.Z);
-                        position /= 1000;
-                        mForcePlates[i].ForceSamples[j].Moment = position;
+                            Rotation.ECoordinateAxes xAxis, yAxis, zAxis;
+                            Axis axis = Axis.XAxisUpwards;
+                            Rotation.GetCalibrationAxesOrder(axis, out xAxis, out yAxis, out zAxis);
+                            Quaternion rotateMatrix = Rotation.GetAxesOrderRotation(xAxis, yAxis, zAxis);
+
+                            //Add ApplicationPoint, need to XAxis Upwards ? 
+                            Vector3 position = new Vector3(forceSampleData.ApplicationPoint.Z, forceSampleData.ApplicationPoint.Y, forceSampleData.ApplicationPoint.X);
+                            position /= 1000;
+                            position = QuaternionHelper.Rotate(rotateMatrix, position);
+                            position.x *= -1;
+                            mForcePlates[i].ForceSamples[j].ApplicationPoint = position;
+
+                            //Add Force 
+                            position = new Vector3(forceSampleData.Force.X, forceSampleData.Force.Y, forceSampleData.Force.Z);
+                            position /= 1000;
+                            mForcePlates[i].ForceSamples[j].Force = position;
+
+                            //Add Moment
+                            position = new Vector3(forceSampleData.Moment.X, forceSampleData.Moment.Y, forceSampleData.Moment.Z);
+                            position /= 1000;
+                            mForcePlates[i].ForceSamples[j].Moment = position;
+                        }
                     }
                 }
             }
@@ -117,7 +121,6 @@ namespace QualisysRealTime.Unity
 
                     mBodies[i].Rotation *= QuaternionHelper.RotationZ(Mathf.PI * .5f);
                     mBodies[i].Rotation *= QuaternionHelper.RotationX(-Mathf.PI * .5f);
-
                 }
             }
 
@@ -232,7 +235,7 @@ namespace QualisysRealTime.Unity
                 GetAnalogSettings();
                 GetSkeletonSettings();
                 GetForceSettings();
-                
+
             }
         }
 
@@ -445,7 +448,7 @@ namespace QualisysRealTime.Unity
         /// <param name="stream3dNoLabels">if unlabeled markers should be streamed.</param>
         /// <param name="streamGaze">if gaze vectors should be streamed.</param>
         /// <param name="streamAnalog">if analog data should be streamed.</param>
-        public bool Connect(DiscoveryResponse discoveryResponse, short udpPort, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton, bool streamForces)
+        public bool Connect(DiscoveryResponse discoveryResponse, short udpPort, bool stream6d, bool stream3d, bool stream3dNoLabels, bool streamGaze, bool streamAnalog, bool streamSkeleton, bool streamForces=true)
         {
             if (!mProtocol.Connect(discoveryResponse, udpPort, RTProtocol.Constants.MAJOR_VERSION, RTProtocol.Constants.MINOR_VERSION))
             {
@@ -499,12 +502,12 @@ namespace QualisysRealTime.Unity
             mBones.Clear();
             mGazeVectors.Clear();
             mAnalogChannels.Clear();
+            mForcePlates.Clear();
+
             mStreamingStatus = false;
             mProtocol.StreamFramesStop();
             mProtocol.StopStreamListen();
             mProtocol.Disconnect();
-            mForcePlates.Clear();
-
         }
 
 
@@ -533,6 +536,7 @@ namespace QualisysRealTime.Unity
         private bool GetAnalogSettings()
         {
             bool getStatus = mProtocol.GetAnalogSettings();
+
             if (getStatus)
             {
                 mAnalogChannels.Clear();
@@ -675,7 +679,7 @@ namespace QualisysRealTime.Unity
             if (getStatus)
             {
                 mForcePlates.Clear();
-                SettingsForce  mForcePlatesettings = mProtocol.ForceSettings;
+                SettingsForce mForcePlatesettings = mProtocol.ForceSettings;
 
                 //Debug.Log("UnitLength " + settings.UnitLength);
                 //Debug.Log("UnitForce " + settings.UnitForce);
@@ -700,25 +704,25 @@ namespace QualisysRealTime.Unity
                     position /= 1000;
                     position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
                     position.z *= -1;
-                    forcePlate.ForcePlateCorners[0] = position ;
-                    
+                    forcePlate.ForcePlateCorners[0] = position;
+
                     position = new Vector3(p.Location.Corner2.X, p.Location.Corner2.Y, p.Location.Corner2.Z);//Set position to work with unity
                     position /= 1000;
                     position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
                     position.z *= -1;
-                    forcePlate.ForcePlateCorners[1] = position ;
+                    forcePlate.ForcePlateCorners[1] = position;
 
                     position = new Vector3(p.Location.Corner3.X, p.Location.Corner3.Y, p.Location.Corner3.Z);//Set position to work with unity
                     position /= 1000;
                     position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
                     position.z *= -1;
-                    forcePlate.ForcePlateCorners[2] = position ;
+                    forcePlate.ForcePlateCorners[2] = position;
 
                     position = new Vector3(p.Location.Corner4.X, p.Location.Corner4.Y, p.Location.Corner4.Z);//Set position to work with unity
                     position /= 1000;
                     position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
                     position.z *= -1;
-                    forcePlate.ForcePlateCorners[3] = position ;
+                    forcePlate.ForcePlateCorners[3] = position;
 
                     mForcePlates.Add(forcePlate);
                 }
@@ -748,7 +752,7 @@ namespace QualisysRealTime.Unity
                         streamedTypes.Add(ComponentType.Component3dNoLabelsResidual);
                 }
                 else
-                { 
+                {
                     Debug.Log("Error retrieving 3d settings from stream");
                     return false;
                 }
@@ -761,7 +765,7 @@ namespace QualisysRealTime.Unity
                     streamedTypes.Add(ComponentType.Component6d);
                 }
                 else
-                { 
+                {
                     Debug.Log("Error retrieving 6dof settings from stream");
                 }
             }
@@ -773,7 +777,7 @@ namespace QualisysRealTime.Unity
                     streamedTypes.Add(ComponentType.ComponentGazeVector);
                 }
                 else
-                { 
+                {
                     // Don't fail too hard since gaze only has been available for a short while... but still give an error in the log.
                     Debug.Log("Error retrieving gaze settings from stream");
                 }
@@ -786,7 +790,7 @@ namespace QualisysRealTime.Unity
                     streamedTypes.Add(ComponentType.ComponentAnalog);
                 }
                 else
-                { 
+                {
                     // Don't fail too hard since gaze only has been available for a short while... but still give an error in the log.
                     Debug.Log("Error retrieving analog settings from stream");
                 }
@@ -809,7 +813,6 @@ namespace QualisysRealTime.Unity
                 if (GetForceSettings())
                 {
                     streamedTypes.Add(ComponentType.ComponentForce);
-                    //streamedTypes.Add(ComponentType.ComponentForceSingle);
                 }
                 else
                 {
