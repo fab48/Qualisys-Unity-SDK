@@ -75,28 +75,50 @@ namespace QualisysRealTime.Unity
                             var forceSampleData = forceData[i].ForceSamples[j];
 
                             mForcePlates[i].ForceSamples[j] = new ForceSample();
-
+                            /*
                             Rotation.ECoordinateAxes xAxis, yAxis, zAxis;
                             Axis axis = Axis.XAxisUpwards;
                             Rotation.GetCalibrationAxesOrder(axis, out xAxis, out yAxis, out zAxis);
                             Quaternion rotateMatrix = Rotation.GetAxesOrderRotation(xAxis, yAxis, zAxis);
+                            */
+                            
+                            mForcePlates[i].ForceSamples[j].ApplicationPoint = TransformQTMPointToUnityCoord(forceSampleData.ApplicationPoint,mCoordinateSystemChange,false,false,false, 0.001f);
+                            mForcePlates[i].ForceSamples[j].Force = TransformQTMPointToUnityCoord(forceSampleData.Force, mCoordinateSystemChange, false, false, false, 0.001f);
+                            mForcePlates[i].ForceSamples[j].Moment = TransformQTMPointToUnityCoord(forceSampleData.Moment, mCoordinateSystemChange, false, false, false, 0.001f);
+
+                            /*
+                            //Debug.Log(rotateMatrix +" "+ mCoordinateSystemChange);
+                            //Debug.Log(rotateMatrix.eulerAngles +" "+ mCoordinateSystemChange.eulerAngles);
 
                             //Add ApplicationPoint, need to XAxis Upwards ? 
-                            Vector3 position = new Vector3(forceSampleData.ApplicationPoint.Z, forceSampleData.ApplicationPoint.Y, forceSampleData.ApplicationPoint.X);
+                            Vector3 position = new Vector3(forceSampleData.ApplicationPoint.X, forceSampleData.ApplicationPoint.Y, forceSampleData.ApplicationPoint.Z);
+                            position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
                             position /= 1000;
-                            position = QuaternionHelper.Rotate(rotateMatrix, position);
                             position.x *= -1;
+                            //position.z *= -1;
                             mForcePlates[i].ForceSamples[j].ApplicationPoint = position;
 
+
                             //Add Force 
+                            //rotateMatrix = Rotation.GetAxesOrderRotation(yAxis, yAxis, xAxis);
+
                             position = new Vector3(forceSampleData.Force.X, forceSampleData.Force.Y, forceSampleData.Force.Z);
+                            position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
                             position /= 1000;
+                            position.x *= -1;
+                            //position.z *= -1;
+
+                            //position.z *= -1;
+                            //position.y *= -1;
+                            //position.x *= -1;
+
                             mForcePlates[i].ForceSamples[j].Force = position;
 
                             //Add Moment
                             position = new Vector3(forceSampleData.Moment.X, forceSampleData.Moment.Y, forceSampleData.Moment.Z);
                             position /= 1000;
                             mForcePlates[i].ForceSamples[j].Moment = position;
+                            */
                         }
                     }
                 }
@@ -672,6 +694,38 @@ namespace QualisysRealTime.Unity
         }
 
 
+        public Vector3 TransformQTMPointToUnityCoord(Vector3 pos, Quaternion coordinateChange, bool invertX = false, bool invertY = false, bool invertZ = false, float scale = 1)
+        {
+            Point p = new Point();
+            p.X = pos.x;
+            p.Y = pos.y;
+            p.Z = pos.z;
+
+            return TransformQTMPointToUnityCoord(p, coordinateChange, invertX, invertY, invertZ, scale );
+        }
+
+        //
+        //transform QTM Point to position to work with unity
+        //
+        public Vector3 TransformQTMPointToUnityCoord(Point pos, Quaternion coordinateChange,bool invertX=false, bool invertY=false, bool invertZ=false, float scale=1)
+        {
+            Vector3 position = new Vector3(pos.X, pos.Y, pos.Z);//Set position to work with unity
+
+            position *= scale;
+            //position = QuaternionHelper.Rotate(coordinateChange, position);
+            position = coordinateChange*position;
+
+            if (invertX)
+                position.x *= -1;
+            if (invertY)
+                position.y *= -1;
+            if (invertZ)
+                position.z *= -1;
+
+
+            return position;
+        }
+
         private bool GetForceSettings()
         {
             bool getStatus = mProtocol.GetForceSettings();
@@ -692,38 +746,19 @@ namespace QualisysRealTime.Unity
 
                     forcePlate.Name = p.Name;
                     forcePlate.PlateId = p.PlateID;
-
-                    Vector3 position = new Vector3(p.Origin.X, p.Origin.Y, p.Origin.Z);//Set position to work with unity
-                    position /= 1000;
-                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
-                    position.z *= -1;
-                    forcePlate.Origin = position;
-
-                    //Force Plate Location (4 corners)
-                    position = new Vector3(p.Location.Corner1.X, p.Location.Corner1.Y, p.Location.Corner1.Z);//Set position to work with unity
-                    position /= 1000;
-                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
-                    position.z *= -1;
-                    forcePlate.ForcePlateCorners[0] = position;
-
-                    position = new Vector3(p.Location.Corner2.X, p.Location.Corner2.Y, p.Location.Corner2.Z);//Set position to work with unity
-                    position /= 1000;
-                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
-                    position.z *= -1;
-                    forcePlate.ForcePlateCorners[1] = position;
-
-                    position = new Vector3(p.Location.Corner3.X, p.Location.Corner3.Y, p.Location.Corner3.Z);//Set position to work with unity
-                    position /= 1000;
-                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
-                    position.z *= -1;
-                    forcePlate.ForcePlateCorners[2] = position;
-
-                    position = new Vector3(p.Location.Corner4.X, p.Location.Corner4.Y, p.Location.Corner4.Z);//Set position to work with unity
-                    position /= 1000;
-                    position = QuaternionHelper.Rotate(mCoordinateSystemChange, position);
-                    position.z *= -1;
-                    forcePlate.ForcePlateCorners[3] = position;
-
+                    
+                    forcePlate.Origin = TransformQTMPointToUnityCoord(p.Origin, mCoordinateSystemChange);
+                    forcePlate.ForcePlateCorners[0] = TransformQTMPointToUnityCoord(p.Location.Corner1, mCoordinateSystemChange, true, false, false, 0.001f);
+                    forcePlate.ForcePlateCorners[1] = TransformQTMPointToUnityCoord(p.Location.Corner2, mCoordinateSystemChange, true, false, false, 0.001f);
+                    forcePlate.ForcePlateCorners[2] = TransformQTMPointToUnityCoord(p.Location.Corner3, mCoordinateSystemChange, true, false, false, 0.001f);
+                    forcePlate.ForcePlateCorners[3] = TransformQTMPointToUnityCoord(p.Location.Corner4, mCoordinateSystemChange, true, false, false, 0.001f);
+                                        
+                    /*
+                    Debug.DrawLine(forcePlate.ForcePlateCorners[0], forcePlate.ForcePlateCorners[1], Color.red,10);
+                    Debug.DrawLine(forcePlate.ForcePlateCorners[1], forcePlate.ForcePlateCorners[2], Color.green, 10);
+                    Debug.DrawLine(forcePlate.ForcePlateCorners[2], forcePlate.ForcePlateCorners[3], Color.blue, 10);
+                    Debug.DrawLine(forcePlate.ForcePlateCorners[3], forcePlate.ForcePlateCorners[0], Color.cyan, 10);
+                    */
                     mForcePlates.Add(forcePlate);
                 }
 

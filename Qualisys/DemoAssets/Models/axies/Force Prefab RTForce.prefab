@@ -44,14 +44,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 164430fc3c0d44946ad914facec39a17, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  YAxisGO: {fileID: 4974149876708211991}
-  drawForcePlateGizmo: 0
-  drawForceGizmo: 0
-  drawMomentGizmo: 0
-  drawCOPGizmo: 0
+  YAxis: {fileID: 4974149876708211991}
+  minDrawMagnitude: 0.01
+  EulerTransformPlate: {x: 0, y: 180, z: 0}
+  EulerInvertAxisPlate: 000000
+  EulerTransformCOP: {x: 0, y: -90, z: 0}
+  EulerInvertAxisCOP: 000000
+  EulerTransformForce: {x: 0, y: 90, z: 0}
+  EulerInvertAxisForce: 000000
+  drawForcePlateGizmo: 1
+  drawForceGizmo: 1
+  drawCOPGizmo: 1
   plateColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
-  gizmoDelay: 5
-  forceScale: 1.5
+  gizmoDelay: 10
 --- !u!1 &4974149876708211991
 GameObject:
   m_ObjectHideFlags: 0

@@ -10,36 +10,45 @@ namespace QualisysRealTime.Unity
     public class RTForces : MonoBehaviour
     {
         private List<ForcePlate> forcePlates;
-
         private RTClient rtClient;
-
         private bool streaming = false;
 
-        public GameObject YAxisGO;
-        private List<GameObject> YAxisGOList = new List<GameObject>();
+        public GameObject YAxis;
+        private List<GameObject> YAxisList = new List<GameObject>();
 
+        public float minDrawMagnitude = 0.2f;
+
+        [Space]
+        [Header("Transform and flip ")]
+        public Vector3 EulerTransformPlate = new Vector3(0, -90, 0);
+        public bool[] EulerInvertAxisPlate = new bool[3] { false, false, false };
+        public Vector3 EulerTransformCOP = new Vector3(0, -90, 0);
+        public bool[] EulerInvertAxisCOP = new bool[3] { false, false, false };
+        public Vector3 EulerTransformForce = new Vector3(0, 0, 0);
+        public bool[] EulerInvertAxisForce = new bool[3] { false, false, false };
+        [Space]
+
+        [Space]
+        [Header("Draw Gizmo")]
         public bool drawForcePlateGizmo = false;
         public bool drawForceGizmo = false;
-        public bool drawMomentGizmo = false;
+        //public bool drawMomentGizmo = false;
         public bool drawCOPGizmo = false;
         public Color plateColor = new Color(0.5f, 0.5f, 0.5f, 0.5f);
         public float gizmoDelay = 5;
-        public float forceScale = 1.5f;//same Scale as QTM
 
         // Use this for initialization
         void Start()
         {
+
             rtClient = RTClient.GetInstance();
-
-            YAxisGOList.Add(YAxisGO);
-            YAxisGOList[0].transform.localScale = new Vector3(0, 0, 0);
+            YAxisList.Add(YAxis);
+            YAxisList[0].transform.localScale = new Vector3(0, 0, 0);
         }
-
 
         //Draw Force Plate Square
         //void OnSceneGUI(SceneView sv)
         Vector3[] plateGozmo = new Vector3[4];
-
         void OnDrawGizmos()
         {
             //Draw your handles here
@@ -48,24 +57,36 @@ namespace QualisysRealTime.Unity
                 for (int i = 0; i < forcePlates.Count; i++)
                 {
                     Handles.color = plateColor;
-                    //Vector3 pos = transform.position;
-                    //Quaternion rot = transform.rotation;
-                    //Handles.TransformHandle(ref pos ,ref rot);
 
                     for(int j =0; j < forcePlates[i].ForcePlateCorners.Length;j++)
                     {
-                        plateGozmo[j] = transform.TransformPoint( forcePlates[i].ForcePlateCorners[j]);
+                        Quaternion rotateMatrix = Quaternion.Euler(EulerTransformPlate);
+                        Vector3 plate = forcePlates[i].ForcePlateCorners[j];
+                        plate = rtClient.TransformQTMPointToUnityCoord(plate, rotateMatrix, EulerInvertAxisPlate[0], EulerInvertAxisPlate[1], EulerInvertAxisPlate[2]);
+                        plate = transform.TransformPoint(plate);
+
+                        plateGozmo[j] = transform.TransformPoint(plate);
                     }
 
                     Handles.DrawAAConvexPolygon(plateGozmo);
+                    /*
+                    Debug.DrawLine(plateGozmo[0], plateGozmo[1], Color.red);
+                    Debug.DrawLine(plateGozmo[1], plateGozmo[2], Color.green);
+                    Debug.DrawLine(plateGozmo[2], plateGozmo[3], Color.blue);
+                    Debug.DrawLine(plateGozmo[3], plateGozmo[0], Color.cyan);
+                    */
                 }
+
             }
         }
 
         protected virtual void ShowForces()
         {
+
             try  //just to avoid error when forcePlates[i].ForceSamples[j] is null
             {
+                int axisInstancesCount = 0;
+
                 if (forcePlates != null)
                 {
                     for (int i = 0; i < forcePlates.Count; i++)
@@ -74,57 +95,85 @@ namespace QualisysRealTime.Unity
                         {
                             if (forcePlates[i].ForceSamples[j] != null)
                             {
-                                Vector3 force = Vector3.zero;
-                                force = (transform.TransformPoint(forcePlates[i].ForceSamples[j].Force) - transform.position) * forceScale;
+                                
+                                Vector3 COP = forcePlates[i].ForceSamples[j].ApplicationPoint;
+                                Vector3 force = forcePlates[i].ForceSamples[j].Force;
+                                Vector3 plateCenter = forcePlates[i].GetPlateCenter();
+                                //Vector3 moment = forcePlates[i].ForceSamples[j].Moment;
 
-                                Vector3 moment = Vector3.zero;
-                                moment = transform.TransformPoint(forcePlates[i].ForceSamples[j].Moment);
+                                //Transform COP
+                                Quaternion rotateMatrix = Quaternion.Euler(EulerTransformCOP);
+                                COP = rtClient.TransformQTMPointToUnityCoord(COP, rotateMatrix, EulerInvertAxisCOP[0], EulerInvertAxisCOP[1], EulerInvertAxisCOP[2]);
+                                COP = transform.TransformPoint(COP);
 
-                                Vector3 COP = Vector3.zero;
-                                COP = transform.TransformPoint(forcePlates[i].ForceSamples[j].ApplicationPoint) - transform.position;
+                                //Transform Force
+                                rotateMatrix = Quaternion.Euler(EulerTransformForce);
+                                force = rtClient.TransformQTMPointToUnityCoord(force, rotateMatrix, EulerInvertAxisForce[0], EulerInvertAxisForce[1], EulerInvertAxisForce[2]);
+                                force = transform.TransformPoint(force);
 
-                                Vector3 root = transform.TransformPoint(forcePlates[i].GetPlateCenter());
+                                //Transform Plates
+                                rotateMatrix = Quaternion.Euler(EulerTransformPlate);
+                                plateCenter = rtClient.TransformQTMPointToUnityCoord(plateCenter, rotateMatrix, EulerInvertAxisPlate[0], EulerInvertAxisPlate[1], EulerInvertAxisPlate[2]);
+                                plateCenter = transform.TransformPoint(plateCenter);
 
-                                //rotate for 
-                                Quaternion rotateMatrix = QuaternionHelper.RotationX(Mathf.Deg2Rad * -90f);
-
-                                if (drawForceGizmo)
-                                    Debug.DrawRay(root + COP, rotateMatrix * force, Color.red, gizmoDelay);
-                                if (drawMomentGizmo)
-                                    Debug.DrawRay(root + COP, rotateMatrix * moment, Color.blue, gizmoDelay);
-                                if (drawCOPGizmo)
-                                    Debug.DrawRay(root, COP, Color.green, 10);
-
-                                if ((i + j) >= YAxisGOList.Count)
+                                //TODO 
+                                //moment
+                                if (force.magnitude > minDrawMagnitude)
                                 {
-                                    GameObject go = GameObject.Instantiate<GameObject>(YAxisGO);
-                                    go.transform.parent = this.transform;
-                                    YAxisGOList.Add(go);
+                                    if (drawCOPGizmo)
+                                        Debug.DrawRay(plateCenter, COP, Color.green, gizmoDelay);
+                                    if (drawForceGizmo)
+                                        Debug.DrawRay(plateCenter + COP, force, Color.red, gizmoDelay);
+                                    //if (drawMomentGizmo)
+                                    //Debug.DrawRay(root + COP, rotateMatrix * moment, Color.blue, gizmoDelay);
+                                    axisInstancesCount++;
                                 }
 
-                                if (YAxisGOList[i + j] && force.magnitude > 0.05f)
+                                if ((i + j) >= YAxisList.Count)
                                 {
-                                    YAxisGOList[i + j].transform.rotation = Quaternion.LookRotation(force);
-                                    YAxisGOList[i + j].transform.position = root + COP;
-                                    YAxisGOList[i + j].transform.localScale = new Vector3(force.magnitude, force.magnitude, force.magnitude);
+                                    GameObject go = GameObject.Instantiate<GameObject>(YAxis);
+                                    go.transform.parent = this.transform;
+                                    YAxisList.Add(go);
+                                }
+
+                                if (YAxisList[i + j] && force.magnitude > minDrawMagnitude)
+                                {
+                                    YAxisList[i + j].transform.rotation = Quaternion.LookRotation(force) * Quaternion.Euler(90,0,0);
+                                    YAxisList[i + j].transform.position = plateCenter + COP;
+                                    YAxisList[i + j].transform.localScale = new Vector3(force.magnitude, force.magnitude, force.magnitude);
                                 }
                                 else
                                 {
-                                    YAxisGOList[i + j].transform.localScale = new Vector3(0, 0, 0);
+                                    YAxisList[i + j].transform.localScale = new Vector3(0, 0, 0);
                                 }
                             }
+                        }
+                    }
+                }
+                
+                //Debug.Log(axisInstancesCount +"<"+ YAxisList.Count);
+
+                if (axisInstancesCount < YAxisList.Count)
+                {
+                    for (int yAxisCount = YAxisList.Count-1; yAxisCount > axisInstancesCount; yAxisCount--)
+                    {
+                        if (yAxisCount >1)
+                        {
+                            GameObject go = YAxisList[yAxisCount];
+                            YAxisList.Remove(go);
+                            Destroy(go);
                         }
                     }
                 }
             }
             catch (Exception e)
             {
-                Debug.Log(e.Message+ " "+e.Source+" "+e.StackTrace);
+                Debug.Log(e.Message + " " + e.Source + " " + e.StackTrace);
             }
         }
 
-        // Update is called once per frame
-        void Update()
+            // Update is called once per frame
+            void Update()
         {
             if (rtClient == null) rtClient = RTClient.GetInstance();
 
